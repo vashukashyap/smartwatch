@@ -6,3 +6,5 @@ cmake_minimum_required(VERSION 3.5)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(smartwatch)
+
+set(EXTRA_COMPONENTS_DIRS components/core components/hal_drivers)
