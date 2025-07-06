@@ -135,7 +135,7 @@ void gc9a01a_init();
 
 void gc9a01a_mode(gc9a01a_modes_t mode);
 
-void gc9a01a_draw_screen(uint16_t start_col, uint16_t end_col, uint16_t start_row, uint16_t end_row, uint16_t color);
+void gc9a01a_draw_cursor_set(uint16_t start_col, uint16_t end_col, uint16_t start_row, uint16_t end_row);
 
 void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row);
 
