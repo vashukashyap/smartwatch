@@ -13,7 +13,7 @@ void display_draw_rectangle(uint16_t degree, uint16_t radius, uint16_t width, ui
   
   if (rect == NULL) 
   {
-    printf("ubale to create buffer");
+    printf("unable to create buffer");
     return;
   }
 
