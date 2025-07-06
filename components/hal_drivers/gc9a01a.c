@@ -155,6 +155,29 @@ void gc9a01a_init()
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
+    gc9a01a_draw_cursor_set(0, 240, 0, 240);
+
+    gc9a01a_send_cmd(0x2C);
+
+    uint16_t *display_ram_temp_buffer = (uint16_t*) malloc(sizeof(uint16_t) * GC9A01A_TFTWIDTH * GC9A01A_TFTHEIGHT);
+
+    if (display_ram_temp_buffer==NULL)
+    {
+        ESP_LOGI(TAG, " unable to create temp buffer for display from malloc");
+        return;
+    }
+
+    uint16_t set_color = (GC9A01A_BLACK >> 8) | (GC9A01A_BLACK <<8);
+    for(int i=0; i < GC9A01A_TFTWIDTH * GC9A01A_TFTWIDTH; i++)
+    {
+        display_ram_temp_buffer[i] = set_color;
+    }
+
+    gc9a10a_display_buffer(display_ram_temp_buffer, (GC9A01A_TFTWIDTH * GC9A01A_TFTWIDTH));
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    free(display_ram_temp_buffer);
+
     ESP_LOGI(TAG, "Display is initalized with vendor commands");
 }
 
@@ -172,7 +195,7 @@ void gc9a01a_mode(gc9a01a_modes_t mode)
     }
 }
 
-void gc9a01a_draw_screen(uint16_t start_col, uint16_t end_col, uint16_t start_row, uint16_t end_row, uint16_t color)
+void gc9a01a_draw_cursor_set(uint16_t start_col, uint16_t end_col, uint16_t start_row, uint16_t end_row)
 {
 
     uint8_t col_paras[4] = { 
@@ -190,26 +213,7 @@ void gc9a01a_draw_screen(uint16_t start_col, uint16_t end_col, uint16_t start_ro
     gc9a01a_send_cmd(0x2B);
     gc9a01a_send_data(row_paras, 4);
 
-    gc9a01a_send_cmd(0x2C);
-
-    uint16_t *display_ram_temp_buffer = (uint16_t*) malloc(sizeof(uint16_t) * (end_col-start_col + 1) * (end_row-start_row + 1));
-
-    if (display_ram_temp_buffer==NULL)
-    {
-        ESP_LOGI(TAG, " unable to create temp buffer for display from malloc");
-        return;
-    }
-
-    uint16_t set_color = (color >> 8) | (color <<8);
-    for(int i=0; i < ((end_col-start_col + 1) * (end_row-start_row + 1)); i++)
-    {
-        display_ram_temp_buffer[i] = set_color;
-    }
-
-    gc9a10a_display_buffer(display_ram_temp_buffer, ((end_col-start_col + 1) * (end_row-start_row + 1)));
-    vTaskDelay(pdMS_TO_TICKS(10));
-
-    free(display_ram_temp_buffer);
+    
 }
 
 void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row)
@@ -232,6 +236,7 @@ void gc9a10a_display_buffer(uint16_t *buffer, size_t size)
         .tx_buffer = buffer
     };
     
+    gc9a01a_send_cmd(GC9A01A_RAMWR);
     gpio_set_level(GPIO_DC, 1);
     ESP_ERROR_CHECK( spi_device_transmit(handle, &buffer_tx));
 }
