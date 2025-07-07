@@ -16,7 +16,7 @@
 // -------DSIPLAY CONFIGRATION MACROS---------
 
 // ----DIMENSIONS OF DISPLAY 
-#define GC9A01A_TFTWIDTH 240  ///< Display width in pixels
+#define GC9A01A_TFTWIDTH 240 ///< Display width in pixels
 #define GC9A01A_TFTHEIGHT 240 ///< Display height in pixels
 
 
@@ -78,7 +78,7 @@
 #define MADCTL_MH 0x04  ///< LCD refresh right to left
 
 // ----- COLOR DEFINATIONS
-#define GC9A01A_BLACK 0x0000       ///<   0,   0,   0
+#define GC9A01A_BLACK 0x0000ULL       ///<   0,   0,   0
 #define GC9A01A_NAVY 0x000F        ///<   0,   0, 123
 #define GC9A01A_DARKGREEN 0x03E0   ///<   0, 125,   0
 #define GC9A01A_DARKCYAN 0x03EF    ///<   0, 125, 123
@@ -141,7 +141,7 @@ void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row);
 
 void gc9a01a_draw_screen_pixel(uint16_t pox_x, uint16_t pos_y, uint16_t color);
 
-void gc9a10a_display_buffer(uint16_t *buffer, size_t size);
+void gc9a10a_display_buffer(uint8_t *buffer, size_t size);
 
 void gc9a10a_frame_show(gc9a01a_frame_modes_t mode);
 

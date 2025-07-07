@@ -50,6 +50,7 @@ void gc9a01a_init_conn()
     //Configuration for the D/C pin
     gpio_set_direction(GPIO_DC, GPIO_MODE_OUTPUT);
 
+
     ESP_LOGI(TAG, "display connection initalized");
 
 }
@@ -155,28 +156,22 @@ void gc9a01a_init()
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    gc9a01a_draw_cursor_set(0, 240, 0, 240);
+   
+    uint8_t line_buffer[GC9A01A_TFTWIDTH*2];
+
+    for(int i=0; i<GC9A01A_TFTWIDTH; i++)
+    {
+        line_buffer[i*2] = (GC9A01A_BLACK >> 8) & 0xFF;
+        line_buffer[i*2+1] = (GC9A01A_BLACK) & 0xFF;
+    }
+
+    gc9a01a_draw_cursor_set(0,240,0,240);
 
     gc9a01a_send_cmd(0x2C);
-
-    uint16_t *display_ram_temp_buffer = (uint16_t*) malloc(sizeof(uint16_t) * GC9A01A_TFTWIDTH * GC9A01A_TFTHEIGHT);
-
-    if (display_ram_temp_buffer==NULL)
+    for(int i=0; i<=GC9A01A_TFTHEIGHT; i++)
     {
-        ESP_LOGI(TAG, " unable to create temp buffer for display from malloc");
-        return;
+        gc9a01a_send_data(line_buffer, sizeof(line_buffer));
     }
-
-    uint16_t set_color = (GC9A01A_BLACK >> 8) | (GC9A01A_BLACK <<8);
-    for(int i=0; i < GC9A01A_TFTWIDTH * GC9A01A_TFTWIDTH; i++)
-    {
-        display_ram_temp_buffer[i] = set_color;
-    }
-
-    gc9a10a_display_buffer(display_ram_temp_buffer, (GC9A01A_TFTWIDTH * GC9A01A_TFTWIDTH));
-    vTaskDelay(pdMS_TO_TICKS(10));
-
-    free(display_ram_temp_buffer);
 
     ESP_LOGI(TAG, "Display is initalized with vendor commands");
 }
@@ -229,16 +224,17 @@ void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row)
     
 }
 
-void gc9a10a_display_buffer(uint16_t *buffer, size_t size)
+void gc9a10a_display_buffer(uint8_t *buffer, size_t size)
 {
     spi_transaction_t buffer_tx = {
-        .length = size * 16,
+        .length = size * 8,
         .tx_buffer = buffer
     };
     
     gc9a01a_send_cmd(GC9A01A_RAMWR);
     gpio_set_level(GPIO_DC, 1);
     ESP_ERROR_CHECK( spi_device_transmit(handle, &buffer_tx));
+    printf("BUFFER SENT");
 }
 
 void gc9a01a_draw_screen_pixel(uint16_t pox_x, uint16_t pos_y, uint16_t color)
