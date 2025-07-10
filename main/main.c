@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <gc9a01a.h>
+#include <display.h>
+#include <ui.h>
+// #include <fonts/FreeMonoBold24pt7b.h>
+#include <stopwatch.h>
 
-
+extern uint8_t* v_display_buffer; 
 
 void app_main(void)
 {  
@@ -10,37 +14,34 @@ void app_main(void)
     gc9a01a_init_conn();
     gc9a01a_init();
     gc9a01a_mode(GC9A01A_NORMAL_MODE);
-    gc9a01a_draw_screen(0,239,0,239, GC9A01A_PINK);
-    // fill_color(GC9A01A_PINK);
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    // for(int i=30; i<=150; i++)
+    // {
+    //     v_display_draw_rectangle(0,0,240,240,GC9A01A_RED);
+    //     v_draw_text_gfx(50,90, "16:12", &FreeMonoBold24pt7b, GC9A01A_WHITE);
+    //     v_display_draw_arc(120,120, 100, 10, 30, i, GC9A01A_YELLOW);
+    //     // vTaskDelay(pdMS_TO_TICKS(10));
+    //     gc9a01a_send_v_display_buffer(v_display_buffer);
+    // }
+    // for(int i=150; i>=30; i--)
+    // {
+    //     v_display_draw_rectangle(0,0,240,240,GC9A01A_RED);
+    //     v_draw_text_gfx(50,90, "16:12", &FreeMonoBold24pt7b, GC9A01A_WHITE);
+    //     if(i>30){
+    //         v_display_draw_arc(120,120, 100, 10, 30, i, GC9A01A_YELLOW);
+    //     }
+    //     // vTaskDelay(pdMS_TO_TICKS(10));
+    //     gc9a01a_send_v_display_buffer(v_display_buffer);
+    // }
+    for(int i=240; i>0; i--)
+    {
+        v_display_draw_rectangle(0,0,240,240,GC9A01A_RED);
+        v_display_draw_circle(i, 120, 80, GC9A01A_BLUE, 1);
+        // v_draw_text_gfx(50,90, "16:12", &FreeMonoBold24pt7b, GC9A01A_WHITE);
+        // vTaskDelay(pdMS_TO_TICKS(10));
+        gc9a01a_send_v_display_buffer(v_display_buffer);
+    }
 
-    gc9a01a_draw_screen(100,239,100,239, GC9A01A_CYAN);
-    // fill_color(GC9A01A_CYAN);
-    vTaskDelay(pdMS_TO_TICKS(3000));
-
-    gc9a10a_sleep(GC9A01A_SLEEP_ON);
-    gc9a01a_draw_screen(100,200,100,200, GC9A01A_RED);
-    // fill_color(GC9A01A_RED);
-    vTaskDelay(pdMS_TO_TICKS(3000));
-
-    
-    gc9a01a_draw_screen(10,220,10,220, GC9A01A_NAVY);
-
-    gc9a10a_sleep(GC9A01A_SLEEP_OFF);
-    gc9a01a_draw_screen_pixel(100, 100, GC9A01A_BLACK);
-    gc9a10a_inversion(GC9A01A_INVERSION_ENABLE);
-
-    vTaskDelay(pdMS_TO_TICKS(3000));
-    gc9a01a_draw_screen(0,240,0,240, GC9A01A_WHITE);
-   
-    // vTaskDelay(pdMS_TO_TICKS(3000));
-    // gc9a01a_draw_screen(0,240,0,240, GC9A01A_BLACK);
-
-    vTaskDelay(pdMS_TO_TICKS(3000));
-
-
-     vTaskDelay(pdMS_TO_TICKS(3000));
-
-    gc9a10a_inversion(GC9A01A_INVERSION_DISABLE);
-
+    // stopwatch();
+    // v_display_draw_arc(120,120, 88, 10, 30, 120, GC9A01A_GREEN);
+    // v_display_draw_arc(120,120, 78, 10, 30, 90, GC9A01A_BLUE);
 }

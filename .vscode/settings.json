@@ -21,7 +21,9 @@
     "limits": "c",
     "functional": "c",
     "stdio.h": "c",
-    "spi_types.h": "c"
+    "spi_types.h": "c",
+    "display.h": "c",
+    "freemonobold24pt7b.h": "c"
   },
   "idf.portWin": "COM7",
   "idf.flashType": "UART"

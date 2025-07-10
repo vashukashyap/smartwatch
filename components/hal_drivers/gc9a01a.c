@@ -15,8 +15,7 @@ static spi_device_handle_t handle;
 
 static const char *TAG = "GC9A01A Driver";
 
-
-
+uint8_t* v_display_buffer = NULL;
 
 
 void gc9a01a_init_conn()
@@ -80,6 +79,16 @@ void gc9a01a_send_data(const uint8_t *data, int len)
     ESP_ERROR_CHECK( spi_device_transmit(handle, &data_t));
 }
 
+
+void gc9a01a_send_v_display_buffer(uint8_t *v_buffer)
+{
+    if(v_buffer==NULL){
+        ESP_LOGW(TAG, "v_display_buffer is NULL");
+        return;
+    }
+    gc9a01a_send_cmd(0x2C);
+    gc9a01a_send_data(v_display_buffer, (GC9A01A_TFTHEIGHT*GC9A01A_TFTWIDTH*2));
+}
 
 void gc9a01a_init()
 {
@@ -157,21 +166,30 @@ void gc9a01a_init()
     }
 
    
-    uint8_t line_buffer[GC9A01A_TFTWIDTH*2];
+    v_display_buffer = (uint8_t*) heap_caps_malloc(GC9A01A_TFTHEIGHT*GC9A01A_TFTWIDTH*2, MALLOC_CAP_DMA);
 
-    for(int i=0; i<GC9A01A_TFTWIDTH; i++)
+    if(v_display_buffer==NULL)
     {
-        line_buffer[i*2] = (GC9A01A_BLACK >> 8) & 0xFF;
-        line_buffer[i*2+1] = (GC9A01A_BLACK) & 0xFF;
+        ESP_LOGW(TAG, "unable to allocate memory for virtual buffer");
+    }
+    
+
+    uint8_t upperbyte = (GC9A01A_BLACK >> 8) & 0xFF;
+    uint8_t lowerbyte = (GC9A01A_BLACK) & 0xFF;
+
+    for(int i=0; i<GC9A01A_TFTWIDTH*GC9A01A_TFTHEIGHT; i++)
+    {
+        v_display_buffer[i*2] = upperbyte;
+        v_display_buffer[i*2+1] = lowerbyte;
+        if(i%240==0) vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    gc9a01a_draw_cursor_set(0,240,0,240);
+    gc9a01a_draw_cursor_set(0,0,GC9A01A_TFTWIDTH-1,GC9A01A_TFTHEIGHT-1);
 
-    gc9a01a_send_cmd(0x2C);
-    for(int i=0; i<=GC9A01A_TFTHEIGHT; i++)
-    {
-        gc9a01a_send_data(line_buffer, sizeof(line_buffer));
-    }
+    
+    gc9a01a_send_v_display_buffer(v_display_buffer);
+
+    
 
     ESP_LOGI(TAG, "Display is initalized with vendor commands");
 }
@@ -190,17 +208,18 @@ void gc9a01a_mode(gc9a01a_modes_t mode)
     }
 }
 
-void gc9a01a_draw_cursor_set(uint16_t start_col, uint16_t end_col, uint16_t start_row, uint16_t end_row)
+void gc9a01a_draw_cursor_set(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-
+    // end_col--; // unknown coordinate correction
+    // start_col--;
     uint8_t col_paras[4] = { 
-        ((start_col >> 8) & 0xFF), (start_col & 0xFF),
-        ((end_col >> 8) & 0xFF), (end_col & 0xFF)
+        ((x0 >> 8ULL) & 0xFF), (x0 & 0xFF),
+        ((x1 >> 8ULL) & 0xFF), (x1 & 0xFF)
     };
 
     uint8_t row_paras[4] = {
-        ((start_row >> 8) & 0xFF), (start_row & 0xFF),
-        ((end_row >> 8) & 0xFF), (end_row & 0xFF)
+        ((y0 >> 8ULL) & 0xFF), (y0 & 0xFF),
+        ((y1 >> 8ULL) & 0xFF), (y1 & 0xFF)
     };
 
     gc9a01a_send_cmd(0x2A);
@@ -224,40 +243,15 @@ void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row)
     
 }
 
-void gc9a10a_display_buffer(uint8_t *buffer, size_t size)
+
+void gc9a01a_draw_screen_pixel(uint16_t pos_x, uint16_t pos_y, uint16_t color)
 {
-    spi_transaction_t buffer_tx = {
-        .length = size * 8,
-        .tx_buffer = buffer
-    };
-    
-    gc9a01a_send_cmd(GC9A01A_RAMWR);
-    gpio_set_level(GPIO_DC, 1);
-    ESP_ERROR_CHECK( spi_device_transmit(handle, &buffer_tx));
-    printf("BUFFER SENT");
-}
-
-void gc9a01a_draw_screen_pixel(uint16_t pox_x, uint16_t pos_y, uint16_t color)
-{
-    uint8_t col_paras[4] = { 
-        ((pox_x >> 8) & 0xFF), (pox_x & 0xFF),
-        ((pox_x >> 8) & 0xFF), (pox_x & 0xFF)
-    };
-
-    uint8_t row_paras[4] = {
-        ((pos_y >> 8) & 0xFF), (pos_y & 0xFF),
-        ((pos_y >> 8) & 0xFF), (pos_y & 0xFF)
-    };
-
-    gc9a01a_send_cmd(0x2A);
-    gc9a01a_send_data(col_paras, 4);
-    gc9a01a_send_cmd(0x2B);
-    gc9a01a_send_data(row_paras, 4);
+    gc9a01a_draw_cursor_set(pos_x, pos_y, pos_x, pos_y);
 
     gc9a01a_send_cmd(0x2C);
     
-    uint16_t pixel[1] = {(color >> 8) | (color <<8)};
-    gc9a10a_display_buffer(pixel, 1);
+    uint8_t pixel[2] = {(color >> 8) & 0xFF, (color) & 0xFF};
+    gc9a01a_send_data(pixel, 2);
 }
 
 

@@ -122,8 +122,9 @@ typedef enum
     GC9A01A_INVERSION_ENABLE = GC9A01A_INVON,
     GC9A01A_INVERSION_DISABLE = GC9A01A_INVOFF
 } gc9a01a_inversion_modes_t;
+ 
 
-
+void gc9a01a_send_v_display_buffer(uint8_t *v_buffer);
 
 void gc9a01a_init_conn();
 
@@ -140,8 +141,6 @@ void gc9a01a_draw_cursor_set(uint16_t start_col, uint16_t end_col, uint16_t star
 void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row);
 
 void gc9a01a_draw_screen_pixel(uint16_t pox_x, uint16_t pos_y, uint16_t color);
-
-void gc9a10a_display_buffer(uint8_t *buffer, size_t size);
 
 void gc9a10a_frame_show(gc9a01a_frame_modes_t mode);
 
