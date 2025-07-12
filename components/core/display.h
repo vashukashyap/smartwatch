@@ -22,6 +22,14 @@ typedef struct {
 } GFXfont;
 
 
+void mark_dirty(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+
+void clear_dirty_rects() ;
+
+void v_draw_pixel_dirty(int16_t x, int16_t y, uint16_t color);
+
+void flush_dirty_rects();
+
 void display_draw_hline(uint16_t x, uint16_t y, uint16_t length, uint16_t color);
 
 void display_draw_rectangle(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t height, uint16_t color);
@@ -67,4 +75,4 @@ void v_draw_text_gfx_rotated(int16_t x, int16_t y, const char *str, const GFXfon
 
 void v_draw_bitmap(int16_t x, int16_t y, const uint8_t *bitmap, uint16_t w, uint16_t h, uint16_t color);
 
-void v_draw_rgb565_image(int x, int y, int w, int h, const uint8_t *img_data);
+void v_draw_rectangle_outline(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color);

@@ -8,10 +8,61 @@
 #include <display.h>
 
 
+#define MAX_DIRTY_RECTS 60
+
+typedef struct {
+    uint16_t x, y, w, h;
+} dirty_rect_t;
 
 static const char *TAG = "Display";
 
+bool DIRTY_RECT_ENABLE = true;
+static dirty_rect_t dirty_rects[MAX_DIRTY_RECTS];
+static int dirty_count = 0;
 extern uint8_t* v_display_buffer; 
+
+
+
+void mark_dirty(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+    if (dirty_count >= MAX_DIRTY_RECTS) return;
+
+    if (x >= GC9A01A_TFTWIDTH || y >= GC9A01A_TFTHEIGHT) return;
+
+    if (x + w > GC9A01A_TFTWIDTH) w = GC9A01A_TFTWIDTH - x;
+    if (y + h > GC9A01A_TFTHEIGHT) h = GC9A01A_TFTHEIGHT - y;
+
+    dirty_rects[dirty_count++] = (dirty_rect_t){ x, y, w, h };
+}
+
+
+void clear_dirty_rects() {
+    dirty_count = 0;
+}
+
+void v_draw_pixel_dirty(int16_t x, int16_t y, uint16_t color) {
+    if (!v_display_buffer || x < 0 || y < 0 || x >= GC9A01A_TFTWIDTH || y >= GC9A01A_TFTHEIGHT)
+        return;
+
+    uint32_t index = (y * GC9A01A_TFTWIDTH + x) * 2;
+    v_display_buffer[index] = color >> 8;
+    v_display_buffer[index + 1] = color & 0xFF;
+
+    mark_dirty(x, y, 1, 1); // Mark this pixel dirty
+}
+
+void flush_dirty_rects() {
+    for (int i = 0; i < dirty_count; i++) {
+        dirty_rect_t *r = &dirty_rects[i];
+
+        for (uint16_t row = 0; row < r->h; row++) {
+            uint32_t offset = ((r->y + row) * GC9A01A_TFTWIDTH + r->x) * 2;
+            gc9a01a_draw_cursor_set(r->x, r->y + row, r->x + r->w - 1, r->y + row);
+            gc9a01a_send_cmd(0x2C);
+            gc9a01a_send_data(&v_display_buffer[offset], r->w * 2);
+        }
+    }
+    clear_dirty_rects();
+}
 
 void display_draw_hline(uint16_t x, uint16_t y, uint16_t length, uint16_t color)
 {
@@ -191,48 +242,45 @@ void v_set_pixel(int16_t x, int16_t y, uint16_t color, uint8_t thickness) {
             int16_t px = x + dx;
             int16_t py = y + dy;
 
-            // ✅ Prevent writing out of bounds
+            //  Prevent writing out of bounds
             if (px >= 0 && px <= GC9A01A_TFTWIDTH -1 && py >= 0 && py <= GC9A01A_TFTHEIGHT-1) {
                 uint32_t index = (py * GC9A01A_TFTWIDTH + px) * 2;
                 v_display_buffer[index]     = color >> 8;
                 v_display_buffer[index + 1] = color & 0xFF;
+
             }
         }
     }
+    // mark_dirty(x - half, y - half, thickness, thickness);
 
 }
 
-
 void v_display_draw_rectangle(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t color)
 {
-    if (!v_display_buffer)
-    {
+    if (!v_display_buffer) {
         ESP_LOGW(TAG, "v_display_buffer is NULL.");
         return;
     }
 
-    if(x+width > GC9A01A_TFTWIDTH || y+height > GC9A01A_TFTHEIGHT)
-    {
-         ESP_LOGW(TAG, "out of bond values.");
-        return;
-    }
+    // Clamp to display bounds
+    if (x >= GC9A01A_TFTWIDTH || y >= GC9A01A_TFTHEIGHT) return;
+    if (x + width > GC9A01A_TFTWIDTH)  width = GC9A01A_TFTWIDTH - x;
+    if (y + height > GC9A01A_TFTHEIGHT) height = GC9A01A_TFTHEIGHT - y;
 
-    for (uint8_t j = 0; j < height; j++)
-    {
-        for (uint8_t i = 0; i < width; i++)
-        {
-
-            uint8_t px = x + i;
-            uint8_t py = y + j;
-
+    for (uint16_t j = 0; j < height; j++) {
+        uint16_t py = y + j;
+        for (uint16_t i = 0; i < width; i++) {
+            uint16_t px = x + i;
             uint32_t index = (py * GC9A01A_TFTWIDTH + px) * 2;
-            v_display_buffer[index] = color >> 8 & 0xFF;
+            v_display_buffer[index]     = (color >> 8) & 0xFF;
             v_display_buffer[index + 1] = color & 0xFF;
         }
     }
 
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
+    // Mark dirty region for flush (optional)
+    if(DIRTY_RECT_ENABLE) mark_dirty(x, y, width, height);
 }
+
 
 
 void v_display_draw_circle(uint8_t cx, uint8_t cy, uint8_t radius, uint16_t color, bool filled) {
@@ -360,7 +408,6 @@ void v_display_draw_line(int x0, int y0, int x1, int y1, uint16_t color, uint8_t
     // gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
-
 void v_draw_char_gfx(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t color) {
     if (c < font->first || c > font->last) return;
 
@@ -372,7 +419,8 @@ void v_draw_char_gfx(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t
     int8_t   xo = glyph->xOffset;
     int8_t   yo = glyph->yOffset;
 
-    int16_t x_start = x + xo;
+    // 🔄 Shift x to the left from top-right anchor
+    int16_t x_start = x - (w + xo);
     int16_t y_start = y + yo;
 
     uint8_t bit = 0, bits = 0;
@@ -390,9 +438,10 @@ void v_draw_char_gfx(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t
         }
     }
 
-    // Optional: buffer flush if needed per-char
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
+
+    if(DIRTY_RECT_ENABLE) mark_dirty(x_start-2, y_start-2, w+5,h+5);
 }
+
 
 
 void v_draw_text_gfx(int16_t x, int16_t y, const char *str, const GFXfont *font, uint16_t color)
@@ -482,22 +531,37 @@ void v_draw_text_gfx(int16_t x, int16_t y, const char *str, const GFXfont *font,
 // }
 
 void v_display_draw_arc(int16_t cx, int16_t cy, int16_t r, int16_t thickness, float start_angle, float end_angle, uint16_t color) {
+    if (!v_display_buffer) {
+        ESP_LOGW("ARC", "v_display_buffer is NULL");
+        return;
+    }
+
+    // Clamp radius and thickness
+    if (r <= 0 || thickness <= 0 || thickness > r) return;
+
+    // Clamp angles
+    if (start_angle < 0) start_angle = 0;
+    if (end_angle > 360) end_angle = 360;
+    if (end_angle < start_angle) return;
+
     for (float angle = start_angle; angle <= end_angle; angle += 0.5f) {
         float rad = angle * (M_PI / 180.0f);
         for (int t = 0; t < thickness; t++) {
             float tr = r - t;
             int16_t x = cx + tr * cosf(rad);
             int16_t y = cy + tr * sinf(rad);
-            if((start_angle == angle ||end_angle == angle) && t==thickness/2)
-            {
-                v_display_draw_circle(x-1, y, thickness/2+1, color, true);
+
+            // Boundary check
+            if (x >= 0 && x < GC9A01A_TFTWIDTH && y >= 0 && y < GC9A01A_TFTHEIGHT) {
+                v_set_pixel(x, y, color, 2);
             }
-            v_set_pixel(x, y, color, 2);
         }
     }
-    
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
+
+    // Optionally mark dirty region for flush (rough estimation)
+    if(DIRTY_RECT_ENABLE) mark_dirty(cx - r - thickness, cy - r - thickness, 2 * (r + thickness), 2 * (r + thickness));
 }
+
 
 void v_draw_char_gfx_rotated(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t color, float angle_deg) {
     if (c < font->first || c > font->last) return;
@@ -593,15 +657,28 @@ void v_draw_bitmap(int16_t x, int16_t y, const uint8_t *bitmap, uint16_t w, uint
     // gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
-void v_draw_rgb565_image(int x, int y, int w, int h, const uint8_t *img_data) {
-    for (int j = 0; j < h; j++) {
-        for (int i = 0; i < w; i++) {
-            int pixel_index = (j * w + i) * 2;
-            uint16_t color = (img_data[pixel_index] << 8) | img_data[pixel_index + 1];
-            v_set_pixel(x + i, y + j, color, 1);
-        }
+void v_draw_rectangle_outline(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color) {
+    if (!v_display_buffer) return;
+
+    if (x + width > GC9A01A_TFTWIDTH || y + height > GC9A01A_TFTHEIGHT) {
+        ESP_LOGW("RECT_OUTLINE", "Rectangle out of bounds");
+        return;
     }
 
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
+    // Top and bottom edges
+    for (uint16_t i = 0; i < width; i++) {
+        v_set_pixel(x + i, y, color, 1);                         // Top
+        v_set_pixel(x + i, y + height - 1, color, 1);            // Bottom
+    }
+
+    // Left and right edges
+    for (uint16_t j = 0; j < height; j++) {
+        v_set_pixel(x, y + j, color, 1);                         // Left
+        v_set_pixel(x + width - 1, y + j, color, 1);             // Right
+    }
+
+    // Mark dirty region for flush
+    mark_dirty(x, y, width, height);
 }
+
 

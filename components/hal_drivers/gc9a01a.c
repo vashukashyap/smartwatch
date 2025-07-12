@@ -30,16 +30,18 @@ void gc9a01a_init_conn()
         .max_transfer_sz = GC9A01A_TFTHEIGHT * GC9A01A_TFTWIDTH * 2 + 8 
     };
 
-    ESP_ERROR_CHECK( spi_bus_initialize(SENDER_HOST, &buscfg, SPI_DMA_CH_AUTO) );
+    ESP_ERROR_CHECK( spi_bus_initialize(SENDER_HOST, &buscfg, SPI_DMA_CH1) );
     
     ESP_LOGI(TAG, "master SPI bus is initalized");
 
     //Configuration for the SPI device on the other side of the bus
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 30000000,
+        .clock_speed_hz = 60000000,
         .mode = 0,
         .spics_io_num = GPIO_CS,      //Keep the CS low 3 cycles after transaction, to stop slave from missing the last bit when CS has less propagation delay than CLK
-        .queue_size = 3
+        .queue_size = 7,
+        .flags = SPI_DEVICE_NO_DUMMY,
+        .pre_cb = NULL
     };
 
     ESP_ERROR_CHECK( spi_bus_add_device(SENDER_HOST, &devcfg, &handle) );

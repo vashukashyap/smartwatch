@@ -1,19 +1,18 @@
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
-#include <gc9a01a.h>
+// #include <gc9a01a.h>
 #include <display.h>
 #include <ui.h>
+#include <render.h>
 // #include <fonts/FreeMonoBold24pt7b.h>
 #include <stopwatch.h>
 
-extern uint8_t* v_display_buffer; 
+// extern uint8_t* v_display_buffer; 
 
 void app_main(void)
 {  
    
-    gc9a01a_init_conn();
-    gc9a01a_init();
-    gc9a01a_mode(GC9A01A_NORMAL_MODE);
+
     // for(int i=30; i<=150; i++)
     // {
     //     v_display_draw_rectangle(0,0,240,240,GC9A01A_RED);
@@ -32,16 +31,9 @@ void app_main(void)
     //     // vTaskDelay(pdMS_TO_TICKS(10));
     //     gc9a01a_send_v_display_buffer(v_display_buffer);
     // }
-    for(int i=240; i>0; i--)
-    {
-        v_display_draw_rectangle(0,0,240,240,GC9A01A_RED);
-        v_display_draw_circle(i, 120, 80, GC9A01A_BLUE, 1);
-        // v_draw_text_gfx(50,90, "16:12", &FreeMonoBold24pt7b, GC9A01A_WHITE);
-        // vTaskDelay(pdMS_TO_TICKS(10));
-        gc9a01a_send_v_display_buffer(v_display_buffer);
-    }
-
-    // stopwatch();
+    init_render();
+    xTaskCreate(render_execute, "rendering", (1024)*2, NULL, 5, NULL);
+    stopwatch();
     // v_display_draw_arc(120,120, 88, 10, 30, 120, GC9A01A_GREEN);
     // v_display_draw_arc(120,120, 78, 10, 30, 90, GC9A01A_BLUE);
 }

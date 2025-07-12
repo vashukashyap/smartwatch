@@ -3,6 +3,6 @@
 
 void background();
 
-void progressbar(char *value,float angle);
+void progressbar(void *args);
 
 void stopwatch();

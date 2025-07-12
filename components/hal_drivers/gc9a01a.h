@@ -9,7 +9,7 @@
 #define GPIO_DC             2
 #define GPIO_MOSI           23
 #define GPIO_SCLK           18
-#define SENDER_HOST         SPI2_HOST
+#define SENDER_HOST         SPI3_HOST
 #define SPI_DEFAULT_FREQ    40000000
 
 
@@ -136,7 +136,7 @@ void gc9a01a_init();
 
 void gc9a01a_mode(gc9a01a_modes_t mode);
 
-void gc9a01a_draw_cursor_set(uint16_t start_col, uint16_t end_col, uint16_t start_row, uint16_t end_row);
+void gc9a01a_draw_cursor_set(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 
 void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row);
 
