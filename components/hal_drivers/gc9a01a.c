@@ -6,18 +6,21 @@
 #include <gc9a01a.h>
 
 
-#ifndef CONFIG_LOG_MAXIMUM_LEVEL
-#define CONFIG_LOG_MAXIMUM_LEVEL ESP_LOG_WARN
-#endif
-
-
+// spi handle
 static spi_device_handle_t handle;
 
 static const char *TAG = "GC9A01A Driver";
 
+// this is a virtual display buffer
 uint8_t* v_display_buffer = NULL;
 
 
+
+/*
+    @brief this function initalized the spi connection required for GC9A01A display
+    @param void
+    @return void
+*/
 void gc9a01a_init_conn()
 {
      //Configuration for the SPI bus
@@ -56,6 +59,13 @@ void gc9a01a_init_conn()
 
 }
 
+
+/*
+    @brief this function send command to GC9A01A display
+    @param cmd 
+                command of the GC9A01A display
+    @return void
+*/
 void gc9a01a_send_cmd(uint8_t cmd)
 {
     gpio_set_level(GPIO_DC, 0);                         // turning D/C low for sending command
@@ -68,6 +78,15 @@ void gc9a01a_send_cmd(uint8_t cmd)
     ESP_ERROR_CHECK( spi_device_transmit(handle, &cmd_t));
 }
 
+
+/*
+    @brief this function send data to GC9A01A display
+    @param data  
+                address of data buffer
+    @param len 
+                length of the data
+    @return void
+*/
 void gc9a01a_send_data(const uint8_t *data, int len)
 {
     if(len==0) return;
@@ -81,7 +100,12 @@ void gc9a01a_send_data(const uint8_t *data, int len)
     ESP_ERROR_CHECK( spi_device_transmit(handle, &data_t));
 }
 
-
+/*
+    @brief send and display the whole virtual buffer on GC9A01A display
+    @param v_buffer  
+                address of v_dsiplay_buffer
+    @return void
+*/
 void gc9a01a_send_v_display_buffer(uint8_t *v_buffer)
 {
     if(v_buffer==NULL){
@@ -92,6 +116,11 @@ void gc9a01a_send_v_display_buffer(uint8_t *v_buffer)
     gc9a01a_send_data(v_display_buffer, (GC9A01A_TFTHEIGHT*GC9A01A_TFTWIDTH*2));
 }
 
+
+/*
+    @brief initalized GC9A01A display with the vendor commands
+    @return void
+*/
 void gc9a01a_init()
 {
     // -------- this is the startup commands provided by the vendor.
@@ -167,7 +196,7 @@ void gc9a01a_init()
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-   
+    // allocating the virtual memory to the v_display_buffer from DMA
     v_display_buffer = (uint8_t*) heap_caps_malloc(GC9A01A_TFTHEIGHT*GC9A01A_TFTWIDTH*2, MALLOC_CAP_DMA);
 
     if(v_display_buffer==NULL)
@@ -175,7 +204,7 @@ void gc9a01a_init()
         ESP_LOGW(TAG, "unable to allocate memory for virtual buffer");
     }
     
-
+    // initalized the v_display_buffer with the black color
     uint8_t upperbyte = (GC9A01A_BLACK >> 8) & 0xFF;
     uint8_t lowerbyte = (GC9A01A_BLACK) & 0xFF;
 
@@ -196,6 +225,13 @@ void gc9a01a_init()
     ESP_LOGI(TAG, "Display is initalized with vendor commands");
 }
 
+/*
+    @brief change buffer display mode of GC9A01A display
+    @param mode  
+                the mode in which  data to be display "GC9A01A_NORMAL_MODE" or "GC9A01A_PARTIAL_MODE"
+    @return void
+    @note   read datasheet of GC9A01A display for knowing about the Normal mode and Partial mode.
+*/
 void gc9a01a_mode(gc9a01a_modes_t mode)
 {
     switch (mode)
@@ -210,10 +246,20 @@ void gc9a01a_mode(gc9a01a_modes_t mode)
     }
 }
 
+/*
+    @brief set the cursor position of the GC9A01A display ram to send buffer
+    @param x0  
+                stating x-coordinate
+    @param y0  
+                stating y-coordinate
+    @param x1  
+                ending x-coordinate
+    @param y1  
+                ending y-coordinate
+    @return void
+*/
 void gc9a01a_draw_cursor_set(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-    // end_col--; // unknown coordinate correction
-    // start_col--;
     uint8_t col_paras[4] = { 
         ((x0 >> 8ULL) & 0xFF), (x0 & 0xFF),
         ((x1 >> 8ULL) & 0xFF), (x1 & 0xFF)
@@ -232,6 +278,15 @@ void gc9a01a_draw_cursor_set(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
     
 }
 
+/*
+    @brief set the cursor position of the GC9A01A display ram to send buffer for PARTIAL MODE
+    @param start_row  
+                vertical pixel to start with.
+    @param` end_row  
+                vertical pixel to end with.
+    @return void
+    @note   Columm or horizontal pixels are set by the ' gc9a01a_draw_cursor_set( ) ' function.
+*/
 void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row)
 {
 
@@ -245,7 +300,16 @@ void gc9a01a_draw_screen_partial(uint16_t start_row, uint16_t end_row)
     
 }
 
-
+/*
+    @brief this function draw the pixel on the GC9A01A display without any v_display_buffer
+    @param  pos_x  
+                x coordinate of pixel
+    @param  pos_y  
+                y coordinate of pixel
+    @param  color
+                Color value in hexadecimal (size : 2 byte)
+    @return void
+*/
 void gc9a01a_draw_screen_pixel(uint16_t pos_x, uint16_t pos_y, uint16_t color)
 {
     gc9a01a_draw_cursor_set(pos_x, pos_y, pos_x, pos_y);
@@ -256,7 +320,15 @@ void gc9a01a_draw_screen_pixel(uint16_t pos_x, uint16_t pos_y, uint16_t color)
     gc9a01a_send_data(pixel, 2);
 }
 
-
+/*
+    @brief this function disable/enable the GC9A01A display ram data display on the screen
+    @param  mode  
+                for enabling ' GC9A01A_FRAME_ENABLE ' ,  for disabling ' GC9A01A_FRAME_DISABLE '
+    @param  end_row  
+                vertical pixel to end with.
+    @return void
+    @note   for more details read datasheet of GC9A01A display.
+*/
 void gc9a10a_frame_show(gc9a01a_frame_modes_t mode)
 {
     switch (mode)
@@ -273,6 +345,13 @@ void gc9a10a_frame_show(gc9a01a_frame_modes_t mode)
     }
 }
 
+/*
+    @brief this function put the GC9A01A display in sleep mode.
+    @param  mode  
+                for sleep ' GC9A01A_SLEEP_ON ' ,  for wakeup ' GC9A01A_SLEEP_OFF '
+    @return void
+    @note   for more details read datasheet of GC9A01A display.
+*/
 void gc9a10a_sleep(gc9a01a_sleep_modes_t mode)
 {
     switch (mode)
@@ -289,6 +368,14 @@ void gc9a10a_sleep(gc9a01a_sleep_modes_t mode)
     }
 }
 
+
+/*
+    @brief this function inverse the GC9A01A display data.
+    @param  mode  
+                for inversion ' GC9A01A_INVERSION_ENABLE ' ,  for normal ' GC9A01A_INVERSION_DISABLE '
+    @return void
+    @note   for more details read datasheet of GC9A01A display.
+*/
 void gc9a10a_inversion(gc9a01a_inversion_modes_t mode)
 {
     switch (mode)

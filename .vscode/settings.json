@@ -23,7 +23,9 @@
     "stdio.h": "c",
     "spi_types.h": "c",
     "display.h": "c",
-    "freemonobold24pt7b.h": "c"
+    "freemonobold24pt7b.h": "c",
+    "app_manager.h": "c",
+    "stopwatch.h": "c"
   },
   "idf.portWin": "COM7",
   "idf.flashType": "UART"

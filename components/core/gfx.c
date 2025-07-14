@@ -5,21 +5,24 @@
 #include <gc9a01a.h>
 #include <esp_log.h>
 #include <stdbool.h>
-#include <display.h>
+#include <gfx.h>
 
 
+#define TAG "gfx"
 #define MAX_DIRTY_RECTS 60
+
+extern uint8_t* v_display_buffer; 
+
 
 typedef struct {
     uint16_t x, y, w, h;
 } dirty_rect_t;
 
-static const char *TAG = "Display";
-
 bool DIRTY_RECT_ENABLE = true;
+
 static dirty_rect_t dirty_rects[MAX_DIRTY_RECTS];
+
 static int dirty_count = 0;
-extern uint8_t* v_display_buffer; 
 
 
 

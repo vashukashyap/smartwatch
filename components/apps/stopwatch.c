@@ -1,12 +1,18 @@
 #include <stdio.h>
-#include <display.h>
+#include <gfx.h>
 #include <gc9a01a.h>
 #include <fonts/FreeMonoBold24pt7b.h>
 #include <freertos/FreeRTOS.h>
 #include <malloc.h>
 #include <render.h>
+#include <stopwatch.h>
 
-extern uint8_t* v_display_buffer; 
+
+App stopwatch_app = {
+    .name = "Stopwatch",
+    .entry_point = stopwatch
+};
+
 
 typedef struct
 {
@@ -29,6 +35,9 @@ void progressbar(void *args)
 }
 
 
+
+
+
 void stopwatch()
 {
     values *stopwatch_values = (values*) malloc(sizeof(values));
@@ -39,13 +48,14 @@ void stopwatch()
     render(progressbar, stopwatch_values, CONTINOUS);
 
         
-    for(int i=0; i<100; i++)
+    for(int i=0; i<10; i++)
     {
         sprintf(stopwatch_values->time, "%d", i);
         stopwatch_values->angle = i*3.6;
         vTaskDelay(pdMS_TO_TICKS(1000));
-        // gc9a01a_send_v_display_buffer(v_display_buffer);
     }
 
+    app_remove_with_free(&stopwatch_app);
 }
+
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <display.h>
+#include <gfx.h>
 
 
 typedef  struct

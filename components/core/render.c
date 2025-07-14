@@ -2,86 +2,74 @@
 #include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
-#include <stdbool.h>
-#include <display.h>
+#include <gfx.h>
 #include <gc9a01a.h>
+#include <app_manager.h>
 
-#define MAX_RENDER_COMPONENTS 64
+
+#define TAG "RENDER"
+
+extern App *active_app;
 
 extern bool DIRTY_RECT_ENABLE;
-
-static render_component_t *render_stack = NULL;
-static int render_stack_count = 0;
-
 extern uint8_t* v_display_buffer;
 
 bool init_render()
 {
-    render_stack = heap_caps_malloc(sizeof(render_component_t) * MAX_RENDER_COMPONENTS, MALLOC_CAP_DMA);
-    if(render_stack==NULL)
-    {
-        ESP_LOGW("RENDER", "enable to create render stack");
-        return false;
-    }
-    render_stack_count = 0;
-        gc9a01a_init_conn();
+    gc9a01a_init_conn();
     gc9a01a_init();
     gc9a01a_mode(GC9A01A_NORMAL_MODE);
-    ESP_LOGI("RENDER", "render stack initalized");
+    ESP_LOGI(TAG, "render initialized");
     return true;
 }
 
-
-void render(render_function_t func, void *user_data, render_t render_type)
+void render(render_function_t func, void *user_data, render_mode_t render_mode)
 {
-    if(render_stack_count >= MAX_RENDER_COMPONENTS || !render_stack)
-    {
-        ESP_LOGW("RENDER", "enable to create render stack");
-        return;
-    }
+    if (!active_app || active_app->render_count >= MAX_RENDER_ENTRIES) return;
 
-    render_stack[render_stack_count++] = (render_component_t){func, user_data, render_type};
-    ESP_LOGI("RENDER", "component added");
+    ESP_LOGI(TAG, "render component added");
+
+    active_app->render_stack[active_app->render_count++] = (render_stack_entry_t){
+        .func = func,
+        .userdata = user_data,
+        .mode = render_mode,
+    };
 }
+
+
 
 void render_execute()
 {
-    // if(!render_stack) return;
-    ESP_LOGI("RENDER", "render executing");
-    int loop_index = 0;
+    ESP_LOGI(TAG, "render component execute");
     while (true) {
-        if (!render_stack || render_stack_count == 0) {
+        if (!active_app || active_app->render_count == 0) {
+            ESP_LOGI(TAG, "render stack empty");
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
+        for (int i = 0; i < active_app->render_count; i++) {
+            render_stack_entry_t *entry = &active_app->render_stack[i];
 
-        
-        render_function_t f = render_stack[loop_index].func;
-        void *data = render_stack[loop_index].userdata;
+            if(entry->mode == NONE){
+                DIRTY_RECT_ENABLE = false;
+                entry->func(entry->userdata);
+            }
 
-        if(render_stack[loop_index].render_type == NONE)
-        {
-            DIRTY_RECT_ENABLE = false;
-            f(data);
+            if(entry->mode == ONCE)
+            {
+                DIRTY_RECT_ENABLE = true;
+                entry->func(entry->userdata);
+                entry->mode = NONE;
+            }
+
+            if(entry->mode == CONTINOUS)
+            {
+                DIRTY_RECT_ENABLE = true;
+                entry->func(entry->userdata);
+            }
         }
 
-        if(render_stack[loop_index].render_type == ONCE)
-        {
-            f(data);
-            render_stack[loop_index].render_type = NONE;
-        }
-        
-        if (render_stack[loop_index].render_type == CONTINOUS) {
-            DIRTY_RECT_ENABLE = true;
-            f(data);
-        }
-        
         flush_dirty_rects();
-        taskYIELD();
-        // gc9a01a_send_v_display_buffer(v_display_buffer);
-        // vTaskDelay(pdMS_TO_TICKS(10));
-
-        loop_index++;
-        if (loop_index >= render_stack_count) loop_index = 0;
+        vTaskDelay(pdMS_TO_TICKS(16)); // ~60fps
     }
 }
