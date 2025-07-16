@@ -4,17 +4,23 @@
 #include <freertos/FreeRTOS.h>
 #include <gfx.h>
 #include <gc9a01a.h>
-#include <app_manager.h>
+#include <app_constructor.h>
+#include <string.h>
 
 
 #define TAG "RENDER"
 
 extern App *active_app;
-
 extern bool DIRTY_RECT_ENABLE;
 extern uint8_t* v_display_buffer;
 
-bool init_render()
+
+/*
+    @brief initalized the render and the display.
+    @param void
+    @return void
+*/
+bool render_init()
 {
     gc9a01a_init_conn();
     gc9a01a_init();
@@ -23,7 +29,18 @@ bool init_render()
     return true;
 }
 
-void render(render_function_t func, void *user_data, render_mode_t render_mode)
+
+/*
+    @brief add the components of the app in the render stack for rendering
+    @param  func
+                render function pointer
+    @param  user_data
+                user_data pointer
+    @param  render_mode
+                render mode for the type of rendering of the component. ( 'NONE' , 'ONCE' , 'CONTINOUS' )
+    @return void
+*/
+void render_add_component(render_function_t func, void *user_data, render_mode_t render_mode)
 {
     if (!active_app || active_app->render_count >= MAX_RENDER_ENTRIES) return;
 
@@ -36,8 +53,10 @@ void render(render_function_t func, void *user_data, render_mode_t render_mode)
     };
 }
 
-
-
+/*
+    @brief  loop continuously in the render stack
+    @return void
+*/
 void render_execute()
 {
     ESP_LOGI(TAG, "render component execute");
@@ -70,6 +89,6 @@ void render_execute()
         }
 
         flush_dirty_rects();
-        vTaskDelay(pdMS_TO_TICKS(16)); // ~60fps
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

@@ -98,6 +98,7 @@
 #define GC9A01A_GREENYELLOW 0xAFE5 ///< 173, 255,  41
 #define GC9A01A_PINK 0xFC18        ///< 255, 130, 198
 
+// structure for the display configs
 
 typedef enum
 {

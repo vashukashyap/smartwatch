@@ -1,6 +1,8 @@
 #pragma once
 #include <render.h>
 
+
+// App constructor structure
 typedef struct {
     const char *name;
     void (*entry_point)(void); // app start function
@@ -10,6 +12,6 @@ typedef struct {
 
 
 
-void launch_app(App *app);
+void app_constructor_launch(App *app);
 
-void app_remove_with_free(App *app);
+void app_constructor_remove(App *app);

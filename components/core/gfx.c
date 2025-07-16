@@ -9,23 +9,40 @@
 
 
 #define TAG "gfx"
+
+//Maximum number of dirty rectangle can be marked
 #define MAX_DIRTY_RECTS 60
 
+//virtual display buffer
 extern uint8_t* v_display_buffer; 
 
-
+//Structure for maintaing the marking of dirty rectangle
 typedef struct {
     uint16_t x, y, w, h;
 } dirty_rect_t;
 
-bool DIRTY_RECT_ENABLE = true;
-
+//Array of dirtyl rectangle markings
 static dirty_rect_t dirty_rects[MAX_DIRTY_RECTS];
 
+//Count of dirty rectangle
 static int dirty_count = 0;
 
+//Enable the dirty rectangle marking
+bool DIRTY_RECT_ENABLE = true;
 
 
+/*
+    @brief mark the dircty rectangle area
+    @param x
+            x coordinate of top left corner
+    @param y
+            y coordinate of top left corner
+    @param width
+            width of the mark rectangle
+    @param height
+            height of the mark rectangle
+    @return void
+*/
 void mark_dirty(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     if (dirty_count >= MAX_DIRTY_RECTS) return;
 
@@ -37,22 +54,22 @@ void mark_dirty(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     dirty_rects[dirty_count++] = (dirty_rect_t){ x, y, w, h };
 }
 
-
+/*
+    @brief clear the marked dirty rectangles
+    @param void
+    @return void
+*/
 void clear_dirty_rects() {
     dirty_count = 0;
 }
 
-void v_draw_pixel_dirty(int16_t x, int16_t y, uint16_t color) {
-    if (!v_display_buffer || x < 0 || y < 0 || x >= GC9A01A_TFTWIDTH || y >= GC9A01A_TFTHEIGHT)
-        return;
 
-    uint32_t index = (y * GC9A01A_TFTWIDTH + x) * 2;
-    v_display_buffer[index] = color >> 8;
-    v_display_buffer[index + 1] = color & 0xFF;
 
-    mark_dirty(x, y, 1, 1); // Mark this pixel dirty
-}
-
+/*
+    @brief flush all the marked dirty rectangle and draw them on display.
+    @param void
+    @return void
+*/
 void flush_dirty_rects() {
     for (int i = 0; i < dirty_count; i++) {
         dirty_rect_t *r = &dirty_rects[i];
@@ -67,6 +84,21 @@ void flush_dirty_rects() {
     clear_dirty_rects();
 }
 
+
+
+/*
+    @brief draw the horizontal line on the display.
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+    @param length
+            length of the line.
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+    @note   this function don't use any v_display_buffer to draw things. it directly draw on the screen.
+*/
 void display_draw_hline(uint16_t x, uint16_t y, uint16_t length, uint16_t color)
 {
     if (y >= 240 || x >= 240) return;
@@ -86,6 +118,21 @@ void display_draw_hline(uint16_t x, uint16_t y, uint16_t length, uint16_t color)
 }
 
 
+/*
+    @brief draw the rectangle on the screen
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+     @param width
+            width of the rectangle
+    @param height
+            height of the rectangle
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+    @note   this function don't use any v_display_buffer to draw things. it directly draw on the screen.
+*/
 void display_draw_rectangle(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint16_t height, uint16_t color)
 {
   if(pos_x+ width>240){
@@ -114,9 +161,21 @@ void display_draw_rectangle(uint16_t pos_x, uint16_t pos_y, uint16_t width, uint
       gc9a01a_send_data(line_buffer, width*2);
   }
   
-//   gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
+/*
+    @brief draw the circle on the screen
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+     @param radius
+            radius of the circle
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+    @note   this function don't use any v_display_buffer to draw things. it directly draw on the screen.
+*/
 void display_draw_circle(uint16_t pos_x,uint16_t pos_y , uint16_t radius, uint16_t color)
 {
    if (pos_x >= 240 || pos_y >= 240 || radius == 0) return;
@@ -142,7 +201,25 @@ void display_draw_circle(uint16_t pos_x,uint16_t pos_y , uint16_t radius, uint16
     }
 }
 
-
+/*
+    @brief draw the traingle on the screen
+    @param x0
+            x coordinate of bottom left
+    @param y0 
+            y coordinate of bottom left
+    @param x1
+            x coordinate of top
+    @param y1 
+            y coordinate of top
+    @param x2
+            x coordinate of bottom right
+    @param y2
+            y coordinate of bottom right
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+    @note   this function don't use any v_display_buffer to draw things. it directly draw on the screen.
+*/
 void display_draw_flat_bottom_triangle(int x0, int y0, int x1, int y1, int x2, int y2, uint16_t color)
 {
     float invslope1 = (float)(x1 - x0) / (y1 - y0);
@@ -164,7 +241,23 @@ void display_draw_flat_bottom_triangle(int x0, int y0, int x1, int y1, int x2, i
     }
 }
 
-
+/*
+    @brief draw the rectangle with rounded corners on the screen
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+    @param w
+            width of the rectangle
+    @param h
+            height of the rectangle
+    @param radius
+            radius of the rectangle's corners
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+    @note   this function don't use any v_display_buffer to draw things. it directly draw on the screen.
+*/
 void display_draw_rounded_rectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t radius, uint16_t color)
 {
     if (w < 2 * radius || h < 2 * radius) {
@@ -186,6 +279,24 @@ void display_draw_rounded_rectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t
     display_draw_circle(x + w - radius - 1, y + h - radius - 1, radius, color);  // bottom-right
 }
 
+
+/*
+    @brief draw the line 
+    @param x0
+            x coordinate of line starting point
+    @param y0
+            y coordinate of line starting point
+    @param x1
+            x coordinate of line ending point
+    @param y1
+            y coordinate of line ending point
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @param thickness
+            thickness of the line
+    @return void
+    @note   this function don't use any v_display_buffer to draw things. it directly draw on the screen.
+*/
 void display_draw_line(int x0, int y0, int x1, int y1, uint16_t color, uint8_t thickness)
 {
     int dx = abs(x1 - x0);
@@ -234,7 +345,18 @@ void display_draw_line(int x0, int y0, int x1, int y1, uint16_t color, uint8_t t
     }
 }
 
-
+/*
+    @brief draw the pixel in v_display_buffer
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @param thickness
+            thickness of the pixel.
+    @return void
+*/
 void v_set_pixel(int16_t x, int16_t y, uint16_t color, uint8_t thickness) {
     if (!v_display_buffer || thickness == 0) return;
 
@@ -258,6 +380,20 @@ void v_set_pixel(int16_t x, int16_t y, uint16_t color, uint8_t thickness) {
 
 }
 
+/*
+    @brief draw the rectangle in the v_display_buffer
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+     @param width
+            width of the rectangle
+    @param height
+            height of the rectangle
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_display_draw_rectangle(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t color)
 {
     if (!v_display_buffer) {
@@ -285,7 +421,20 @@ void v_display_draw_rectangle(uint8_t x, uint8_t y, uint8_t width, uint8_t heigh
 }
 
 
-
+/*
+    @brief draw the circle in the v_disply_buffer
+    @param cx
+            center's x coordinate 
+    @param cy
+            center's y coordinate
+     @param radius
+            radius of the circle
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @param filled
+            'true' for circle to be filled with color and 'false' for only circle outline.
+    @return void
+*/
 void v_display_draw_circle(uint8_t cx, uint8_t cy, uint8_t radius, uint16_t color, bool filled) {
     if (!v_display_buffer) {
         ESP_LOGW(TAG, "v_display_buffer is NULL.");
@@ -329,10 +478,25 @@ void v_display_draw_circle(uint8_t cx, uint8_t cy, uint8_t radius, uint16_t colo
         x++;
 
     }
-
-    // gc9a01a_send_v_display_buffer(v_display_buffer);  // update display
 }
 
+
+/*
+    @brief draw the rectangle with rounded corners int the v_display_buffer
+    @param x
+            x coordinate
+    @param y
+            y coordinate
+    @param width
+            width of the rectangle
+    @param height
+            height of the rectangle
+    @param r
+            radius of the rectangle's corners
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_display_draw_round_rectangle(uint8_t x, uint8_t y, uint8_t width, uint8_t height,
                                 uint8_t r, uint16_t color) {
     if (!v_display_buffer) {
@@ -369,9 +533,25 @@ void v_display_draw_round_rectangle(uint8_t x, uint8_t y, uint8_t width, uint8_t
     v_display_draw_circle(x+r+1, y+height-r-1, r, color, 1);
     v_display_draw_circle(x+width-r-1, y+height-r-1, r, color, 1);
 
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
+
+/*
+    @brief draw the line in the v_display_buffer
+    @param x0
+            x coordinate of line starting point
+    @param y0
+            y coordinate of line starting point
+    @param x1
+            x coordinate of line ending point
+    @param y1
+            y coordinate of line ending point
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @param thickness
+            thickness of the line
+    @return void
+*/
 void v_display_draw_line(int x0, int y0, int x1, int y1, uint16_t color, uint8_t thickness)
 {
     if (!v_display_buffer) {
@@ -407,10 +587,23 @@ void v_display_draw_line(int x0, int y0, int x1, int y1, uint16_t color, uint8_t
             y0 += sy;
         }
     }
-
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
+
+/*
+    @brief draw the character in the v_display_buffer 
+    @param x
+            x coordinate of line starting point
+    @param y
+            y coordinate of line starting point
+    @param c
+            character value
+    @param font
+            GFXfont structure pointer
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_draw_char_gfx(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t color) {
     if (c < font->first || c > font->last) return;
 
@@ -446,7 +639,20 @@ void v_draw_char_gfx(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t
 }
 
 
-
+/*
+    @brief draw the String in the v_display_buffer 
+    @param x
+            x coordinate of line starting point
+    @param y
+            y coordinate of line starting point
+    @param str
+            character array
+    @param font
+            GFXfont structure pointer
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_draw_text_gfx(int16_t x, int16_t y, const char *str, const GFXfont *font, uint16_t color)
 {
     int16_t cursor_x = x;
@@ -465,74 +671,24 @@ void v_draw_text_gfx(int16_t x, int16_t y, const char *str, const GFXfont *font,
     }
 }
 
-
-// void v_draw_arc_hline(uint16_t cx, uint16_t cy,
-//                       uint16_t inner_r, uint16_t outer_r,
-//                       float start_angle_deg, float end_angle_deg,
-//                       uint16_t color)
-// {
-//     if (!v_display_buffer) return;
-
-//     // Normalize angles between 0–360
-//     while (start_angle_deg < 0) start_angle_deg += 360;
-//     while (end_angle_deg < 0) end_angle_deg += 360;
-//     if (end_angle_deg < start_angle_deg) end_angle_deg += 360;
-
-//     float start_rad = start_angle_deg * M_PI / 180.0f;
-//     float end_rad = end_angle_deg * M_PI / 180.0f;
-
-//     for (int r = inner_r; r <= outer_r; r++) {
-//         float prev_y = -1000;
-//         for (float angle = start_rad; angle <= end_rad; angle += 0.01f) {
-//             float x = cosf(angle) * r;
-//             float y = sinf(angle) * r;
-
-//             int xi = (int)(cx + x);
-//             int yi = (int)(cy + y);
-
-//             // Draw horizontal span if on new Y row
-//             if ((int)prev_y != yi) {
-//                 int x_start = (int)(cx + cosf(angle - 0.02f) * r);
-//                 int x_end   = (int)(cx + cosf(angle + 0.02f) * r);
-
-//                 if (x_start > x_end) {
-//                     int temp = x_start;
-//                     x_start = x_end;
-//                     x_end = temp;
-//                 }
-
-//                 for (int xh = x_start; xh <= x_end; xh++) {
-//                     v_set_pixel(xh, yi, color, 1);
-//                 }
-//                 prev_y = yi;
-//             }
-//         }
-//     }
-
-//     gc9a01a_send_v_display_buffer(v_display_buffer);
-// }
-
-
-
-// void v_display_draw_arc_m(uint8_t cx, uint8_t cy, uint8_t radius_i, uint8_t radius_o, uint8_t start_a, uint8_t end_a, uint16_t color, bool filled) {
-//     if (!v_display_buffer) {
-//         ESP_LOGW(TAG, "v_display_buffer is NULL.");
-//         return;
-//     }
-
-//     for(int deg = start_a; deg<end_a;deg++)
-//     {
-//         int x1 = cx+ radius_i * cos(deg * M_PI / 180.0);
-//         int y1 = cy+ radius_i * sin(deg * M_PI / 180.0);
-//         int x2 = cx+ radius_o * cos(deg * M_PI / 180.0);
-//         int y2 = cy+ radius_o * sin(deg * M_PI / 180.0);
-//         v_display_draw_line(x1,y1,x2,y2, color, 2);
-//     }
-
-
-//     gc9a01a_send_v_display_buffer(v_display_buffer);  // update display
-// }
-
+/*
+    @brief draw the arc in the v_display_buffer 
+    @param cx
+            center x coordinate of the circle for the arc
+    @param cy
+            center y coordinate of the circle for the arc
+    @param r
+            radius of the arc from the center
+    @param thickness
+            thickness of the arc
+    @param starting_angle
+            arc starting angle
+    @param end_angle
+            arc ending angle
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_display_draw_arc(int16_t cx, int16_t cy, int16_t r, int16_t thickness, float start_angle, float end_angle, uint16_t color) {
     if (!v_display_buffer) {
         ESP_LOGW("ARC", "v_display_buffer is NULL");
@@ -565,7 +721,23 @@ void v_display_draw_arc(int16_t cx, int16_t cy, int16_t r, int16_t thickness, fl
     if(DIRTY_RECT_ENABLE) mark_dirty(cx - r - thickness, cy - r - thickness, 2 * (r + thickness), 2 * (r + thickness));
 }
 
-
+/*
+    @brief draw the character with particular in the v_display_buffer 
+    @param x
+            x coordinate of line starting point
+    @param y
+            y coordinate of line starting point
+    @param c
+            character
+    @param font
+            GFXfont structure pointer
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @param angle_deg
+            angle at which character should be drawn.
+    @return void
+    @note this function not always work correctly with very angle.
+*/
 void v_draw_char_gfx_rotated(int16_t x, int16_t y, char c, const GFXfont *font, uint16_t color, float angle_deg) {
     if (c < font->first || c > font->last) return;
 
@@ -611,10 +783,26 @@ void v_draw_char_gfx_rotated(int16_t x, int16_t y, char c, const GFXfont *font, 
             bits <<= 1;
         }
     }
-
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
+
+/*
+    @brief draw the String with particular in the v_display_buffer 
+    @param x
+            x coordinate of line starting point
+    @param y
+            y coordinate of line starting point
+    @param str
+            character array
+    @param font
+            GFXfont structure pointer
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @param angle_deg
+            angle at which character should be drawn.
+    @return void
+    @note this function not always work correctly with very angle.
+*/
 void v_draw_text_gfx_rotated(int16_t x, int16_t y, const char *str, const GFXfont *font, uint16_t color, float angle_deg)
 {
     float angle_rad = angle_deg * (M_PI / 180.0f);
@@ -643,6 +831,22 @@ void v_draw_text_gfx_rotated(int16_t x, int16_t y, const char *str, const GFXfon
 }
 
 
+/*
+    @brief draw the bitmap in the v_display_buffer 
+    @param x
+            x coordinate of line starting point
+    @param y
+            y coordinate of line starting point
+    @param bitmap
+            bitamp array pointer.
+    @param width
+            width of the bitmap
+    @param height
+            height of the bitmap
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_draw_bitmap(int16_t x, int16_t y, const uint8_t *bitmap, uint16_t w, uint16_t h, uint16_t color) {
     if (!v_display_buffer) return;
 
@@ -655,11 +859,23 @@ void v_draw_bitmap(int16_t x, int16_t y, const uint8_t *bitmap, uint16_t w, uint
             }
         }
     }
-
-    // Optional: flush buffer to screen
-    // gc9a01a_send_v_display_buffer(v_display_buffer);
 }
 
+
+/*
+    @brief draw the rectangle's outline in the v_display_buffer 
+    @param x
+            x coordinate of top left corner
+    @param y
+            y coordinate of top left corner
+    @param width
+            width of the rectangle
+    @param height
+            height of the rectangle
+    @param color
+            color value in hexadecimal (  size: 2 bytes )
+    @return void
+*/
 void v_draw_rectangle_outline(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t color) {
     if (!v_display_buffer) return;
 

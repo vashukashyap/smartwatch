@@ -6,10 +6,10 @@
 #include <gc9a01a.h>
 
 
+#define TAG "GC9A01A Driver"
+
 // spi handle
 static spi_device_handle_t handle;
-
-static const char *TAG = "GC9A01A Driver";
 
 // this is a virtual display buffer
 uint8_t* v_display_buffer = NULL;

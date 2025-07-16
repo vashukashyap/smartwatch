@@ -1,6 +1,6 @@
 #pragma once
 
-#include <app_manager.h>
+#include <app_constructor.h>
 
 
 extern App stopwatch_app;
